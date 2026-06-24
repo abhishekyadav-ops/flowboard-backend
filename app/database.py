@@ -1,8 +1,13 @@
-# app/database.py
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from dotenv import load_dotenv
 
-DATABASE_URL = "postgresql://postgres:root@localhost:5432/flowboard"
+# Load local .env file settings if running locally
+load_dotenv()
+
+# Check for Render's cloud environment variable first, default to local if not found
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:root@localhost:5432/flowboard")
 
 engine = create_engine(DATABASE_URL)
 
@@ -14,7 +19,6 @@ SessionLocal = sessionmaker(
 
 Base = declarative_base()
 
-# 🌟 ADD THIS NEW CODE HERE:
 def get_db():
     """
     Creates a fresh database session for a request, 
