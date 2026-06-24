@@ -1,0 +1,29 @@
+from pydantic import BaseModel, Field
+from datetime import datetime
+from typing import Optional
+
+
+class BoardCreate(BaseModel):
+    workspace_id: int
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = Field(None, max_length=1000)
+
+
+class BoardUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = Field(None, max_length=1000)
+
+
+class BoardResponse(BaseModel):
+    id: int
+    workspace_id: int
+    name: str
+    description: Optional[str] = None
+    
+    # 🌟 Fixed: These are now Optional and default to None if missing in the DB
+    created_by: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
