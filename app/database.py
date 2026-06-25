@@ -9,9 +9,12 @@ load_dotenv()
 # 1. Fetch the raw environment variable string
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:root@localhost:5432/flowboard")
 
-# 🌟 2. CRUCIAL PRODUCTION FIX: Convert 'postgres://' to 'postgresql://' for Render compatibility
-if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+# 🌟 2. CRUCIAL PRODUCTION DRIVER FIX: Force postgresql+psycopg2 driver dialect scheme
+if DATABASE_URL:
+    if DATABASE_URL.startswith("postgres://"):
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif DATABASE_URL.startswith("postgresql://"):
+        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 engine = create_engine(DATABASE_URL)
 
