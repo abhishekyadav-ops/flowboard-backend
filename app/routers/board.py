@@ -208,7 +208,7 @@ def delete_board(
     db.commit()
 
 
-@router.get("/{board_id}/lists", response_model=pyList[ListResponse])
+@router.get("/{board_id}/lists", response_model=PyList[ListResponse])
 def get_board_lists(
     board_id: int,
     db: Session = Depends(get_db),
