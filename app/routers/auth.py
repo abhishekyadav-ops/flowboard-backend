@@ -72,16 +72,21 @@ async def google_callback(code: str, db: Session = Depends(get_db)):
 
     # If they are a first-time user, register them automatically!
     if not user:
-        user = User(
-            name=name,
-            email=email,
-            avatar_url=avatar_url,
-            password_hash="OAUTH_GOOGLE_ACCOUNT_PROFILES", # Secure placeholder
-            is_active=True
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+        try:
+            user = User(
+                name=name,
+                email=email,
+                avatar_url=avatar_url,
+                hashed_password="OAUTH_GOOGLE_ACCOUNT_PROFILES", # 🌟 FIXED: Changed from password_hash to hashed_password
+                is_active=True
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        except Exception as e:
+            db.rollback() # Rollback transaction safely on database write failures
+            print(f"DATABASE INSERTION ERROR: {e}")
+            raise HTTPException(status_code=500, detail="Failed to save new Google user to database records")
 
     # Step 3: Issue our OWN internal JWT token using their true row ID
     internal_token = create_access_token(data={"sub": str(user.id)})
