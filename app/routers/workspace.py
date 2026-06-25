@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func 
 
 from app.models.workspace import Workspace
 from app.models.workspace_member import WorkspaceMember
@@ -33,6 +34,9 @@ router = APIRouter()
 
 # --- WORKSPACE CRUD ENPOINTS ---
 
+
+
+
 @router.post("/", response_model=WorkspaceResponse, status_code=status.HTTP_201_CREATED)
 def create_workspace(
     workspace: WorkspaceCreate,
@@ -40,8 +44,23 @@ def create_workspace(
     current_user: User = Depends(get_current_user)
 ):
     """Create a new workspace and establish initial owner permissions"""
+    cleaned_name = workspace.name.strip()
+
+    # 🌟 1. Case-Insensitive Duplicate Check for this owner
+    existing_workspace = db.query(Workspace).filter(
+        func.lower(Workspace.name) == func.lower(cleaned_name),
+        Workspace.owner_id == current_user.id
+    ).first()
+
+    if existing_workspace:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"A workspace named '{cleaned_name}' already exists."
+        )
+
+    # 2. Proceed with creation if everything is unique
     new_workspace = Workspace(
-        name=workspace.name,
+        name=cleaned_name,  # Saves the cleaned string version without accidental spaces
         description=workspace.description,
         owner_id=current_user.id
     )
@@ -122,6 +141,11 @@ def update_workspace(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Workspace not found"
+        )
+    if workspace.owner_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the workspace owner can perform this action."
         )
 
     if workspace_data.name:
