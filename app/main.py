@@ -2,6 +2,7 @@ import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI 
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # Database and Core Engine Imports
 from app.database import Base, engine
@@ -20,14 +21,14 @@ from app.models.activity_log import ActivityLog
 # API Router Imports
 from app.routers import user, workspace, board, card, list, dashboard, auth
 
-# 🌟 FIX 1: Safe production lifespan startup handler
+# Safe production lifespan startup handler
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize database tables on application startup safely
     Base.metadata.create_all(bind=engine)
     yield
 
-# 🌟 FIX 2: Added redirect_slashes=False to stop 307 redirect CORS drops
+# Added redirect_slashes=False to stop 307 redirect CORS drops
 app = FastAPI(
     title="FlowBoard API", 
     version="1.0.0",
@@ -35,7 +36,19 @@ app = FastAPI(
     redirect_slashes=False  
 )
 
-# 3. CORS Configuration
+# 🌟 STEP 1: Define Proxy Header Middleware first
+class ProxyHeaderMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        proto = request.headers.get("x-forwarded-proto")
+        if proto:
+            request.scope["scheme"] = proto
+        return await call_next(request)
+
+# 🌟 STEP 2: Register Proxy Header Middleware FIRST
+app.add_middleware(ProxyHeaderMiddleware)
+
+# 🌟 STEP 3: Register CORSMiddleware SECOND
+# (By registering this last, it becomes the first line of defense on outgoing errors)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
