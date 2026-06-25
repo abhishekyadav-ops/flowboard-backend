@@ -6,15 +6,19 @@ from dotenv import load_dotenv
 # Load local .env file settings if running locally
 load_dotenv()
 
-# Check for Render's cloud environment variable first, default to local if not found
+# 1. Fetch the raw environment variable string
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:root@localhost:5432/flowboard")
+
+# 🌟 2. CRUCIAL PRODUCTION FIX: Convert 'postgres://' to 'postgresql://' for Render compatibility
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(
     autocommit=False, # manually have to commit 
     autoflush=False,  # till the time we are not commiting, the changes will not be flushed to the database
-    bind=engine # the engine that we created above
+    bind=engine       # the engine that we created above
 )
 
 Base = declarative_base()

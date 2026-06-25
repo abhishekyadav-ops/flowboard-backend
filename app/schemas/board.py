@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional
+from app.schemas.workspace import UserMinResponse
 
 
 class BoardCreate(BaseModel):
@@ -19,11 +20,10 @@ class BoardResponse(BaseModel):
     workspace_id: int
     name: str
     description: Optional[str] = None
-    
-    # 🌟 Fixed: These are now Optional and default to None if missing in the DB
     created_by: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    owner: Optional[UserMinResponse] = None
 
     class Config:
         from_attributes = True

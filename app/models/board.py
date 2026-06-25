@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text
 from datetime import datetime
+from sqlalchemy.orm import relationship
 
 from app.database import Base
 
@@ -44,3 +45,6 @@ class Board(Base):
         nullable=False,
         index=True
     )
+    
+    # 🌟 UPDATED RELATIONSHIP: Tells SQLAlchemy exactly which foreign key to build this mapping on
+    owner = relationship("User", back_populates="boards", foreign_keys=[created_by])
