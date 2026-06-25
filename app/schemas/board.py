@@ -1,29 +1,21 @@
-from pydantic import BaseModel, Field
-from datetime import datetime
-from typing import Optional
-from app.schemas.workspace import UserMinResponse
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session, joinedload
+from typing import List
+from app.database import get_db
+from app.models.board import Board
+from app.schemas.board import BoardResponse # 🌟 Your schema file
 
+router = APIRouter()
 
-class BoardCreate(BaseModel):
-    workspace_id: int
-    name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = Field(None, max_length=1000)
-
-
-class BoardUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = Field(None, max_length=1000)
-
-
-class BoardResponse(BaseModel):
-    id: int
-    workspace_id: int
-    name: str
-    description: Optional[str] = None
-    created_by: Optional[int] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-    owner: Optional[UserMinResponse] = None
-
-    class Config:
-        from_attributes = True
+# 🌟 Make sure response_model matches your List[BoardResponse] structure!
+@router.get("/workspace/{workspace_id}", response_model=List[BoardResponse])
+def get_workspace_boards(workspace_id: int, db: Session = Depends(get_db)):
+    
+    # 🌟 CRITICAL: joinedload(Board.owner) tells SQLAlchemy to fetch the 
+    # creator data in the same query so Pydantic can map 'UserMinResponse' cleanly.
+    boards = db.query(Board)\
+               .filter(Board.workspace_id == workspace_id)\
+               .options(joinedload(Board.owner))\
+               .all()
+               
+    return boards
