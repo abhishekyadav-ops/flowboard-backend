@@ -2,7 +2,9 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
-from app.database import SessionLocal
+
+# 🌟 FIX: Import the master driver-patched get_db instead of rewriting a broken copy
+from app.database import get_db 
 from app.models.user import User
 from app.models.workspace_member import WorkspaceMember
 from app.core.config import (
@@ -10,23 +12,15 @@ from app.core.config import (
     ALGORITHM
 )
 
-# 🌟 Keeps OAuth2 scheme matched against your real login endpoint path
+# Keeps OAuth2 scheme matched against your real login endpoint path
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/users/login"
 )
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 def get_current_user(
     token: str = Depends(oauth2_scheme),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db)  # 🌟 This now correctly uses your master session!
 ) -> User:
     """
     Validates incoming signed JWT tickets.
@@ -44,7 +38,6 @@ def get_current_user(
             SECRET_KEY,
             algorithms=[ALGORITHM]
         )
-        # 🌟 Make sure your token generation router saves the user ID inside the "sub" field!
         user_id = payload.get("sub")
 
         if user_id is None:
@@ -70,9 +63,6 @@ def get_current_user(
 
     return user
 
-
-# 🌟 FIXED HELPER FUNCTIONS:
-# These now take clean arguments passed from your routes instead of broken inline Depends elements!
 
 def get_current_workspace(
     workspace_id: int,
