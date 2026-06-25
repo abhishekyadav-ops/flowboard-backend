@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 import httpx
+import os
 
 from app.database import get_db
 from app.models.user import User
@@ -85,6 +86,8 @@ async def google_callback(code: str, db: Session = Depends(get_db)):
     # Step 3: Issue our OWN internal JWT token using their true row ID
     internal_token = create_access_token(data={"sub": str(user.id)})
 
-    # Redirect them straight back to your Vite React app, passing the token safely in the URL string
-    frontend_success_url = f"http://localhost:5173/login-success?token={internal_token}"
+    # Dynamic Redirection routing logic based on your production environment
+    frontend_base_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    frontend_success_url = f"{frontend_base_url}/login-success?token={internal_token}"
+    
     return RedirectResponse(url=frontend_success_url)
