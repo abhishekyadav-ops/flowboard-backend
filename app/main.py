@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from fastapi import FastAPI 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,13 +20,19 @@ from app.models.activity_log import ActivityLog
 # API Router Imports
 from app.routers import user, workspace, board, card, list, dashboard, auth
 
-# 1. Initialize database tables
-Base.metadata.create_all(bind=engine) 
+# 🌟 FIX 1: Safe production lifespan startup handler
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Initialize database tables on application startup safely
+    Base.metadata.create_all(bind=engine)
+    yield
 
-# 2. Initialize FastAPI instance
+# 🌟 FIX 2: Added redirect_slashes=False to stop 307 redirect CORS drops
 app = FastAPI(
     title="FlowBoard API", 
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
+    redirect_slashes=False  
 )
 
 # 3. CORS Configuration
