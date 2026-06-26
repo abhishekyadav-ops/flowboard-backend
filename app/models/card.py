@@ -19,12 +19,11 @@ class PriorityEnum(str, enum.Enum):
     HIGH = "high"
     CRITICAL = "critical"
 
-
 class Card(Base):
     __tablename__ = "cards"
 
     id = Column(Integer, primary_key=True, index=True)
-    list_id = Column(Integer,ForeignKey("lists.id", ondelete="CASCADE"),nullable=False,index=True)
+    list_id = Column(Integer, ForeignKey("lists.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     priority = Column(SQLEnum(PriorityEnum), default=PriorityEnum.MEDIUM, index=True)
@@ -32,5 +31,5 @@ class Card(Base):
     position = Column(Integer, nullable=False, default=0)
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
-    updated_at = Column(DateTime,default=datetime.utcnow,onupdate=datetime.utcnow,nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False) # 🌟 Keep this active!
     important_link = Column(Text, nullable=True)
