@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI 
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from sqlalchemy import text # 🌟 Imported text for executing raw SQL updates
 
 # Database and Core Engine Imports
 from app.database import Base, engine
@@ -24,8 +25,29 @@ from app.routers import user, workspace, board, card, list, dashboard, auth
 # Safe production lifespan startup handler
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Initialize database tables on application startup safely
+    # 1. Initialize database tables on application startup safely
     Base.metadata.create_all(bind=engine)
+    
+    # 2. 🌟 FORCE SCHEMA PATCH: Ensure missing columns exist in Render PostgreSQL
+    with engine.connect() as connection:
+        try:
+            print("🚀 Checking database columns for 'cards' table...")
+            
+            # Add updated_at if missing
+            connection.execute(text(
+                "ALTER TABLE cards ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP;"
+            ))
+            
+            # Add important_link if missing
+            connection.execute(text(
+                "ALTER TABLE cards ADD COLUMN IF NOT EXISTS important_link TEXT;"
+            ))
+            
+            connection.commit()
+            print("✅ Database schema patched successfully!")
+        except Exception as e:
+            print(f"⚠️ Column patch note: {e}")
+            
     yield
 
 # Added redirect_slashes=False to stop 307 redirect CORS drops
@@ -48,7 +70,6 @@ class ProxyHeaderMiddleware(BaseHTTPMiddleware):
 app.add_middleware(ProxyHeaderMiddleware)
 
 # 🌟 STEP 3: Register CORSMiddleware SECOND
-# (By registering this last, it becomes the first line of defense on outgoing errors)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
