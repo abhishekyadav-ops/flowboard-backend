@@ -9,6 +9,7 @@ class CardCreate(BaseModel):
     description: Optional[str] = Field(None, max_length=5000)
     priority: Literal["low", "medium", "high", "critical"] = "medium"
     due_date: Optional[datetime] = None
+    important_link: Optional[str] = None
 
 
 class CardUpdate(BaseModel):
@@ -16,6 +17,7 @@ class CardUpdate(BaseModel):
     description: Optional[str] = Field(None, max_length=5000)
     priority: Optional[Literal["low", "medium", "high", "critical"]] = None
     due_date: Optional[datetime] = None
+    important_link: Optional[str] = None
 
 
 class CardMoveRequest(BaseModel):
@@ -35,6 +37,7 @@ class CardResponse(BaseModel):
     "critical"
 ]
     due_date: Optional[datetime] = None
+    important_link: Optional[str] = None
     position: int
     created_by: Optional[int] = None
     created_at: datetime
