@@ -94,7 +94,6 @@ def create_board(
     # 🌟 FIX: Re-query with joinedload before returning so Pydantic can map the owner safely
     return db.query(Board).options(joinedload(Board.owner)).filter(Board.id == new_board.id).first()
 
-
 @router.get("/workspace/{workspace_id}", response_model=PyList[BoardResponse])
 def get_workspace_boards(
     workspace_id: int,
@@ -103,13 +102,19 @@ def get_workspace_boards(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get all boards in a workspace"""
+    """
+    🔒 SECURE: Get only the boards in a workspace that the 
+    current user explicitly created/owns.
+    """
     get_current_workspace(workspace_id, current_user, db)
 
-    # 🌟 FIX: Added joinedload(Board.owner) to prevent lazy loading errors on lists
+    # 🌟 FIX: Added the filter for Board.created_by to restrict visibility
     boards = (
         db.query(Board)
-        .filter(Board.workspace_id == workspace_id)
+        .filter(
+            Board.workspace_id == workspace_id,
+            Board.created_by == current_user.id  # Strict Check: They must be the creator!
+        )
         .options(joinedload(Board.owner))
         .offset(skip)
         .limit(limit)
@@ -117,7 +122,6 @@ def get_workspace_boards(
     )
 
     return boards
-
 
 @router.get("/{board_id}/details", response_model=BoardResponse)
 def get_board(
