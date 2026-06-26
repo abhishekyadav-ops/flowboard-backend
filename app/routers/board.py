@@ -6,6 +6,7 @@ from fastapi import (
     Query
 )
 from app.models.workspace import Workspace
+from sqlalchemy import or_, func
 from sqlalchemy import func  
 from sqlalchemy.orm import Session, joinedload  # 🌟 ADDED: joinedload for relationship pre-fetching
 from typing import List as PyList
