@@ -7,7 +7,6 @@ from app.database import Base
 
 class Board(Base):
     __tablename__ = "boards"
-
     id = Column(Integer, primary_key=True, index=True)
 
     workspace_id = Column(
@@ -18,7 +17,7 @@ class Board(Base):
     )
 
     name = Column(
-        String(255),
+        String(265),
         nullable=False,
         index=True
     )
