@@ -87,7 +87,7 @@ async def google_callback(code: str, request: Request, db: Session = Depends(get
                 name=name,
                 email=email,
                 avatar_url=avatar_url,
-                hashed_password="OAUTH_GOOGLE_ACCOUNT_PROFILES",
+                password_hash="OAUTH_GOOGLE_ACCOUNT_PROFILES",
                 is_active=True
             )
             db.add(user)
