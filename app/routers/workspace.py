@@ -363,7 +363,6 @@ def remove_workspace_member(
     db.delete(membership)
     db.commit()
 
-
 @router.get("/{workspace_id}/stats")
 def get_workspace_stats(
     workspace_id: int,
@@ -373,15 +372,20 @@ def get_workspace_stats(
     """Retrieve operational high-level counts for dashboards"""
     get_current_workspace(workspace_id, current_user, db)
 
-    board_count = db.query(Board).filter(Board.workspace_id == workspace_id).count()
-    member_count = db.query(WorkspaceMember).filter(
-        WorkspaceMember.workspace_id == workspace_id
-    ).count()
+    # 1. Count boards in this workspace
+    active_boards = db.query(Board).filter(Board.workspace_id == workspace_id).count()
+    
+    # 2. 🌟 FIX: Count ONLY unique users inside this workspace
+    unique_member_count = (
+        db.query(func.count(WorkspaceMember.user_id.distinct()))
+        .filter(WorkspaceMember.workspace_id == workspace_id)
+        .scalar()
+    )
 
+    # 3. 🌟 FIX: Return the precise keys your React frontend state needs
     return {
-        "workspace_id": workspace_id,
-        "board_count": board_count,
-        "member_count": member_count
+        "activeBoards": active_boards,
+        "teamMembers": unique_member_count
     }
 
 
