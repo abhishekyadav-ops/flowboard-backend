@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy import text # 🌟 Imported text for executing raw SQL updates
 
+
 # Database and Core Engine Imports
 from app.database import Base, engine
 
@@ -18,6 +19,7 @@ from app.models.workspace_member import WorkspaceMember
 from app.models.card_assignment import CardAssignment
 from app.models.comment import Comment
 from app.models.activity_log import ActivityLog
+from app.models.board_member import BoardMember
 
 # API Router Imports
 from app.routers import user, workspace, board, card, list, dashboard, auth
