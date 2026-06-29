@@ -7,8 +7,7 @@ from fastapi import (
 )
 from app.models.workspace import Workspace
 from sqlalchemy import or_, func
-from sqlalchemy import func  
-from sqlalchemy.orm import Session, joinedload  # 🌟 ADDED: joinedload for relationship pre-fetching
+from sqlalchemy.orm import Session, joinedload
 from typing import List as PyList
 from app.models.board_member import BoardMember
 from app.models.board import Board
@@ -91,35 +90,34 @@ def create_board(
         )
 
     db.commit()
-    
-    # 🌟 FIX: Re-query with joinedload before returning so Pydantic can map the owner safely
+
     return db.query(Board).options(joinedload(Board.owner)).filter(Board.id == new_board.id).first()
 
 
 @router.post("/{board_id}/assign/{user_id}", status_code=201)
 def assign_user_to_board(
-    board_id: int, 
-    user_id: int, 
-    db: Session = Depends(get_db), 
+    board_id: int,
+    user_id: int,
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    # 1. Ensure the board exists and current_user is the owner
     board = db.query(Board).filter(Board.id == board_id).first()
     if not board:
         raise HTTPException(status_code=404, detail="Board not found")
     if board.created_by != current_user.id:
         raise HTTPException(status_code=403, detail="Only the board owner can assign members")
 
-    # 2. Check if already assigned
-    existing = db.query(BoardMember).filter(BoardMember.board_id == board_id, BoardMember.user_id == user_id).first()
+    existing = db.query(BoardMember).filter(
+        BoardMember.board_id == board_id,
+        BoardMember.user_id == user_id
+    ).first()
     if existing:
         return {"message": "User already assigned to this board"}
 
-    # 3. Create assignment record
     new_member = BoardMember(board_id=board_id, user_id=user_id)
     db.add(new_member)
     db.commit()
-    
+
     return {"message": "User successfully assigned to the board"}
 
 
@@ -132,38 +130,53 @@ def get_workspace_boards(
     current_user: User = Depends(get_current_user)
 ):
     """
-    🔒 SECURE: Get boards that the user created OR has been assigned to.
+    Visibility rules (matches frontend logic exactly):
+    - Workspace owner → sees ALL boards
+    - Member → sees only boards created by the owner OR boards they created themselves
     """
     get_current_workspace(workspace_id, current_user, db)
 
-    # 🌟 Join with board_members to check access rights
-    boards = (
-        db.query(Board)
-        .outerjoin(BoardMember, BoardMember.board_id == Board.id)
-        .filter(
-            Board.workspace_id == workspace_id,
-            or_(
-                Board.created_by == current_user.id,        # Condition 1: User is the owner (Abhishek)
-                BoardMember.user_id == current_user.id      # Condition 2: User is assigned (Raju)
-            )
+    workspace = db.query(Workspace).filter(Workspace.id == workspace_id).first()
+
+    if current_user.id == workspace.owner_id:
+        # Owner sees everything
+        boards = (
+            db.query(Board)
+            .filter(Board.workspace_id == workspace_id)
+            .options(joinedload(Board.owner))
+            .offset(skip)
+            .limit(limit)
+            .all()
         )
-        .options(joinedload(Board.owner))
-        .distinct() # Prevent duplicate rows if a user matches multiple conditions
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+    else:
+        # Member sees owner-created boards + their own boards only
+        boards = (
+            db.query(Board)
+            .filter(
+                Board.workspace_id == workspace_id,
+                or_(
+                    Board.created_by == workspace.owner_id,  # owner's boards are public to all members
+                    Board.created_by == current_user.id      # member always sees their own boards
+                )
+            )
+            .options(joinedload(Board.owner))
+            .distinct()
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
 
     return boards
 
-@router.get("/{board_id}/details", response_model=BoardResponse)
+
+# FIXED: was /{board_id}/details — frontend calls GET /boards/{board_id}
+@router.get("/{board_id}", response_model=BoardResponse)
 def get_board(
     board_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get board details"""
-    # 🌟 FIX: Added joinedload(Board.owner)
+    """Get board details — used by frontend access control check"""
     board = db.query(Board).options(joinedload(Board.owner)).filter(Board.id == board_id).first()
     if not board:
         raise HTTPException(
@@ -182,7 +195,7 @@ def update_board(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Update board name/description - Secure Workspace Owner check"""
+    """Update board name/description — workspace owner only"""
     board = db.query(Board).filter(Board.id == board_id).first()
     if not board:
         raise HTTPException(
@@ -205,8 +218,7 @@ def update_board(
         board.description = board_data.description
 
     db.commit()
-    
-    # 🌟 FIX: Re-query with joinedload before returning so Pydantic maps the updated details + owner safely
+
     return db.query(Board).options(joinedload(Board.owner)).filter(Board.id == board.id).first()
 
 
@@ -216,7 +228,7 @@ def delete_board(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Delete board - Securely handles deep cascaded deletions"""
+    """Delete board — workspace owner only, cascades lists and cards"""
     board = db.query(Board).filter(Board.id == board_id).first()
     if not board:
         raise HTTPException(
@@ -241,7 +253,7 @@ def delete_board(
 
     db.query(List).filter(List.board_id == board_id).delete(synchronize_session=False)
     db.query(Board).filter(Board.id == board_id).delete(synchronize_session=False)
-    
+
     db.commit()
 
 
@@ -251,7 +263,7 @@ def get_board_lists(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Get all lists in board"""
+    """Get all lists in a board"""
     board = db.query(Board).filter(Board.id == board_id).first()
     if not board:
         raise HTTPException(

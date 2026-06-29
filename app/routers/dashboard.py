@@ -1,19 +1,13 @@
-from fastapi import (
-    APIRouter,
-    Depends,
-    HTTPException,
-    status
-)
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session, joinedload
 
+from app.models.workspace import Workspace
 from app.models.workspace_member import WorkspaceMember
 from app.models.board import Board
 from app.models.list import List
 from app.models.card import Card
 from app.models.card_assignment import CardAssignment
 from app.models.user import User
-
-# Fix 1: Removed local SessionLocal import and centralized dependencies
 from app.core.dependencies import get_current_user, get_db
 
 router = APIRouter()
@@ -25,6 +19,7 @@ def workspace_dashboard(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    # Verify the current user is a member of this workspace
     membership = (
         db.query(WorkspaceMember)
         .filter(
@@ -40,9 +35,23 @@ def workspace_dashboard(
             detail="Access denied"
         )
 
+    # Fetch workspace to know the owner (needed for board visibility)
+    workspace = (
+        db.query(Workspace)
+        .filter(Workspace.id == workspace_id)
+        .first()
+    )
+
+    # Bug 2 fixed: only return boards the current user is allowed to see.
+    # Owner's boards are visible to everyone; member-created boards
+    # are only visible to the workspace owner and the creator themselves.
     boards = (
         db.query(Board)
-        .filter(Board.workspace_id == workspace_id)
+        .filter(
+            Board.workspace_id == workspace_id,
+            (Board.created_by == workspace.owner_id) |
+            (Board.created_by == current_user.id)
+        )
         .all()
     )
 
@@ -67,51 +76,56 @@ def workspace_dashboard(
                 .count()
             )
 
-            # Standardize variations by removing spaces and making it lowercase
+            # Normalize: lowercase and strip spaces before matching
             title = lst.title.lower().replace(" ", "")
 
-            # Fix 2: Updated matching logic to catch "todo", "to do", and variations safely
-            if title in ["todo", "todo"]:
+            # Bug 1 fixed: "to do" → "todo" after .replace(), so one check is enough.
+            # The original ["todo", "todo"] never actually caught the "to do" variation.
+            if title == "todo":
                 stats["todo"] += card_count
-
             elif title == "inprogress":
                 stats["in_progress"] += card_count
-
             elif title == "review":
                 stats["review"] += card_count
-
             elif title == "done":
                 stats["done"] += card_count
 
-    members = []
-
+    # Bug 3 fixed: use joinedload to fetch all users in one query instead of
+    # firing a separate SELECT per member inside the loop.
     workspace_members = (
         db.query(WorkspaceMember)
         .filter(WorkspaceMember.workspace_id == workspace_id)
+        .options(joinedload(WorkspaceMember.user))
         .all()
     )
 
-    for member in workspace_members:
-        user = (
-            db.query(User)
-            .filter(User.id == member.user_id)
-            .first()
-        )
+    members = []
 
-        # Fix 3 (Performance Note): Left for post-deployment optimization as per instructions
+    for member in workspace_members:
+        user = member.user  # already loaded — no extra query
+
+        if not user:
+            continue
+
+        # Bug 4 fixed: scope the assigned_tasks count to this workspace only,
+        # not the user's total assignments across every workspace in the database.
         assigned_tasks = (
             db.query(CardAssignment)
-            .filter(CardAssignment.user_id == member.user_id)
+            .join(Card, Card.id == CardAssignment.card_id)
+            .join(List, List.id == Card.list_id)
+            .join(Board, Board.id == List.board_id)
+            .filter(
+                CardAssignment.user_id == member.user_id,
+                Board.workspace_id == workspace_id
+            )
             .count()
         )
 
-        # Fix 4: Protected against AttributeError crashes if user database records are mismatched
-        if user:
-            members.append({
-                "id": user.id,
-                "name": user.name,
-                "assigned_tasks": assigned_tasks
-            })
+        members.append({
+            "id": user.id,
+            "name": user.name,
+            "assigned_tasks": assigned_tasks
+        })
 
     return {
         "workspace_id": workspace_id,
