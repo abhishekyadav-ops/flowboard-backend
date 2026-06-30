@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
-from typing import Optional, Literal
+from typing import Optional, Literal, List
 
 
 class CardCreate(BaseModel):
@@ -9,7 +9,7 @@ class CardCreate(BaseModel):
     description: Optional[str] = Field(None, max_length=5000)
     priority: Literal["low", "medium", "high", "critical"] = "medium"
     due_date: Optional[datetime] = None
-    important_link: Optional[str] = None
+    links: Optional[List[str]] = []
 
 
 class CardUpdate(BaseModel):
@@ -17,7 +17,7 @@ class CardUpdate(BaseModel):
     description: Optional[str] = Field(None, max_length=5000)
     priority: Optional[Literal["low", "medium", "high", "critical"]] = None
     due_date: Optional[datetime] = None
-    important_link: Optional[str] = None
+    links: Optional[List[str]] = None
 
 
 class CardMoveRequest(BaseModel):
@@ -31,13 +31,13 @@ class CardResponse(BaseModel):
     title: str
     description: Optional[str] = None
     priority: Literal[
-    "low",
-    "medium",
-    "high",
-    "critical"
-]
+        "low",
+        "medium",
+        "high",
+        "critical"
+    ]
     due_date: Optional[datetime] = None
-    important_link: Optional[str] = None
+    links: Optional[List[str]] = []
     position: int
     created_by: Optional[int] = None
     created_at: datetime

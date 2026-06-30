@@ -5,7 +5,8 @@ from sqlalchemy import (
     Text,
     ForeignKey,
     DateTime,
-    Enum as SQLEnum
+    Enum as SQLEnum,
+    JSON
 )
 from datetime import datetime
 import enum
@@ -32,4 +33,4 @@ class Card(Base):
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False) # 🌟 Keep this active!
-    important_link = Column(Text, nullable=True)
+    links = Column(JSON, nullable=True, default=list)

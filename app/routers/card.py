@@ -68,7 +68,7 @@ def create_card(
         due_date=card.due_date,
         position=new_position,
         created_by=current_user.id,
-        important_link=card.important_link
+        links=card.links or []
     )
 
     db.add(new_card)
@@ -126,8 +126,8 @@ def update_card(
         card.priority = card_data.priority
     if card_data.due_date is not None:
         card.due_date = card_data.due_date
-    if card_data.important_link is not None:
-        card.important_link = card_data.important_link
+    if card_data.links is not None:
+        card.links = card_data.links
 
     db.commit()
     db.refresh(card)
