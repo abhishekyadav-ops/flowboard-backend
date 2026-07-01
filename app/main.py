@@ -3,8 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI 
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from sqlalchemy import text # 🌟 Imported text for executing raw SQL updates
-
+from sqlalchemy import text 
 
 # Database and Core Engine Imports
 from app.database import Base, engine
@@ -40,9 +39,9 @@ async def lifespan(app: FastAPI):
                 "ALTER TABLE cards ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP;"
             ))
             
-            # Add important_link if missing
+            # 🌟 FIX: Add the actual 'links' column matching the JSONB requirement
             connection.execute(text(
-                "ALTER TABLE cards ADD COLUMN IF NOT EXISTS important_link TEXT;"
+                "ALTER TABLE cards ADD COLUMN IF NOT EXISTS links JSONB DEFAULT '[]'::jsonb;"
             ))
             
             connection.commit()
